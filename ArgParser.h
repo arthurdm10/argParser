@@ -7,6 +7,7 @@
 #include <cctype>
 #include <algorithm>
 #include <fmt/format.h>
+#include <string.h>
 class ArgParser {
 private:
 	static inline std::string trim(std::string s) {
@@ -24,7 +25,7 @@ private:
 public:
 	ArgParser() = default;
 	ArgParser(const std::string& description);
-	
+
 	ArgParser(const ArgParser&) = delete;
 	ArgParser(ArgParser&&) = delete;
 
@@ -41,15 +42,28 @@ public:
 	_Type get(const std::string& argKey) const {
 
 		std::string arg(this->trim(argKey));
+		auto data = m_args.at(arg);
 
 		if (!this->isSet(arg)) {
 			throw std::runtime_error(fmt::format("Argument '{}' is not set", arg));
 		}
+
 		if constexpr (std::is_same<_Type, char>::value) {
-			return m_args.at(arg)[0];
-		}else if constexpr (std::is_arithmetic<_Type>::value) {
+			return data[0];
+		} else if constexpr (std::is_same<_Type, bool>::value) {
+
+			if (data == "true" || data == "1") {
+				return true;
+			} else if (data == "false" || data == "0") {
+				return false;
+			}
+
+			throw std::runtime_error(
+				fmt::format("Could not convert '{}' from std::string to boolean. \
+Use true/1 or false/0", data));
+
+		} else if constexpr (std::is_arithmetic<_Type>::value) {
 			_Type result;
-			auto data = m_args.at(arg);
 
 			auto cvt = std::from_chars(data.c_str(),
 				data.c_str() + data.size(), result);
@@ -59,14 +73,14 @@ public:
 			}
 
 			return result;
-		}else if constexpr (std::is_same<_Type, std::string>::value) {
+		} else if constexpr (std::is_same<_Type, std::string>::value) {
 			return m_args.at(arg);
-		} else  {
+		} else {
 			throw std::runtime_error("ArgParser::get<T> - Invalid data type");
 		}
 	}
 
-	void displayHelp() const noexcept {
+	void help() const noexcept {
 		std::cout << "\n" << m_description << "\n";
 
 		std::cout << "\t--help: Display this message\n\n";
